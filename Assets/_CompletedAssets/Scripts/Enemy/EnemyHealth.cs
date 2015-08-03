@@ -71,6 +71,15 @@ namespace CompleteProject
         }
 
 
+		/**
+		 * Returns true if the enemy is dead
+		 */
+		public bool IsDead()
+		{
+			return isDead;
+		}
+
+
         void Death ()
         {
             // The enemy is dead.

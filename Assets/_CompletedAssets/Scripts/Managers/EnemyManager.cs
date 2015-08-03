@@ -5,7 +5,7 @@ namespace CompleteProject
 {
     public class EnemyManager : MonoBehaviour
     {
-		public static readonly Dictionary<string, EnemyManager> instances = new Dictionary<string, EnemyManager>(); // A static dictionary which contains every used enemy manager instance referenced by the enemy name
+		public static Dictionary<string, EnemyManager> instances = new Dictionary<string, EnemyManager>(); // A static dictionary which contains every used enemy manager instance referenced by the enemy name
         public PlayerHealth playerHealth;       // Reference to the player's heatlh.
         public GameObject enemy;                // The enemy prefab to be spawned.
         public float spawnTime = 3f;            // How long between each spawn.
@@ -17,7 +17,7 @@ namespace CompleteProject
             // Call the Spawn function after a delay of the spawnTime and then continue to call after the same amount of time.
             InvokeRepeating ("Spawn", spawnTime, spawnTime);
 
-			instances.Add(enemy.name, this);
+			EnemyManager.instances.Add(enemy.name, this);
         }
 
 
@@ -33,14 +33,21 @@ namespace CompleteProject
             // Find a random index between zero and one less than the number of spawn points.
             int spawnPointIndex = Random.Range (0, spawnPoints.Length);
 
-            // Create an instance of the enemy prefab at the randomly selected spawn point's position and rotation.
-            Instantiate (enemy, spawnPoints[spawnPointIndex].position, spawnPoints[spawnPointIndex].rotation);
+			this.Spawn(spawnPoints[spawnPointIndex].position, spawnPoints[spawnPointIndex].rotation);
         }
 
-		public void Spawn (int health, Vector3 position, Quaternion rotation)
+		/**
+		 * Spawns an enemy with the given health at the given position and rotation
+		 */
+		public void Spawn(Vector3 position, Quaternion rotation, int health = 0)
 		{
-			var enemyGameObject = (GameObject) Instantiate (enemy, position, rotation);
-			enemyGameObject.GetComponent<EnemyHealth>().currentHealth = health;
+			var enemyGameObject		= (GameObject) Instantiate (enemy, position, rotation);
+			enemyGameObject.name	= enemy.name;
+
+			if (health > 0)
+			{
+				enemyGameObject.GetComponent<EnemyHealth>().currentHealth = health;
+			}
 		}
     }
 }

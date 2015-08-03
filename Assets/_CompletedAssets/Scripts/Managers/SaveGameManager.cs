@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
@@ -11,83 +12,175 @@ namespace CompleteProject
     public class SaveGameManager : MonoBehaviour
     {
 		/**
-		 * Checks the key inputs and loads / saves the game on matching keys 
+		 * The save game name
+		 */
+		public string saveGameName = "Khorinis";
+
+
+		/**
+		 * The players health class
+		 */
+		public static PlayerHealth playerHealth;
+
+
+		/**
+		 * The players transform
+		 */
+		public static Transform playerTransform;
+
+
+		/**
+		 * Loads and caches needed components on start up
+		 */
+		private void Start()
+		{
+			var player						= GameObject.FindGameObjectWithTag("Player");
+			SaveGameManager.playerHealth	= player.GetComponent<PlayerHealth>();
+			SaveGameManager.playerTransform	= player.GetComponent<Transform>();
+		}
+
+
+		/**
+		 * Checks the key inputs and loads / saves the game on matching keys
 		 */
 		private void Update()
 		{
-			if (Input.GetKeyDown(KeyCode.F5))
+			if (SaveGameManager.playerHealth.currentHealth > 0 && Input.GetButtonDown("Save"))
 			{
-				SaveGameManager.Save("MySaveGame");
+				SaveGameManager.Save(this.saveGameName);
 			}
-
-			if (Input.GetKeyDown(KeyCode.F6))
+			else if (Input.GetButtonDown("Load"))
 			{
-				SaveGameManager.Load("MySaveGame");
+				SaveGameManager.Load(this.saveGameName);
 			}
 		}
 
 
 		/**
-		 * The load method loads the save game with the given name
+		 * The load method loads the save game with the given name and assigns the data to the game objects
 		 */
 		public static void Load(string saveGameName)
 		{
-			if (File.Exists(Application.persistentDataPath + "/" + saveGameName + ".dat"))
+			if (File.Exists(Application.persistentDataPath + "/" + saveGameName + ".savegame"))
 			{
-				var bf = new BinaryFormatter();
-				var file = File.Open(Application.persistentDataPath + "/" + saveGameName + ".dat", FileMode.Open);
-				var saveGame = (SaveGame) bf.Deserialize(file);
-				file.Close();
+				var binaryFormatter	= new BinaryFormatter();
+				var saveGameFile	= File.Open(Application.persistentDataPath + "/" + saveGameName + ".savegame", FileMode.Open);
+				var saveGame		= (SaveGame) binaryFormatter.Deserialize(saveGameFile);
+				saveGameFile.Close();
 
-
-				var player			= GameObject.FindGameObjectWithTag("Player");
-				var playerHealth	= player.GetComponent<PlayerHealth>();
-				var playerTransform	= player.GetComponent<Transform>();
-
-				playerHealth.currentHealth		= saveGame.player.health;
-				playerHealth.healthSlider.value	= saveGame.player.health;
-				playerTransform.position		= new Vector3(saveGame.player.positionX, saveGame.player.positionY, saveGame.player.positionZ);
-				playerTransform.rotation		= new Quaternion(saveGame.player.rotationX, saveGame.player.rotationY, saveGame.player.rotationZ, saveGame.player.rotationW);
-
-
-				ScoreManager.score = saveGame.game.score;
-				Camera.main.transform.position = new Vector3(saveGame.game.cameraPositionX, saveGame.game.cameraPositionY, saveGame.game.cameraPositionZ);
-
-
-				// load spawn timer values?
-				var enemies = GameObject.FindGameObjectsWithTag("Enemy");
-				for (var index = 0; index < enemies.Length; index ++)
+				// Be sure that the save game was successfully desirialized
+				if (saveGame != null)
 				{
-					GameObject.Destroy(enemies[index].gameObject);
+					SaveGameManager.AssignPlayerData(saveGame);
+					SaveGameManager.AssignGameData(saveGame);
+					SaveGameManager.AssignEnemyData(saveGame);
+					
+					Debug.Log("The savegame " + saveGameName + " was successfully loaded!");
 				}
-
-				for (var index = 0; index < saveGame.enemies.Length; index ++)
-				{
-					var enemySpawnPosition	= new Vector3(saveGame.enemies[index].positionX, saveGame.enemies[index].positionY, saveGame.enemies[index].positionZ);
-					var enemySpawnRotation	= new Quaternion(saveGame.enemies[index].rotationX, saveGame.enemies[index].rotationY, saveGame.enemies[index].rotationZ, saveGame.enemies[index].rotationW);
-
-					EnemyManager.instances[saveGame.enemies[index].type].Spawn(saveGame.enemies[index].health, enemySpawnPosition, enemySpawnRotation);
-				}
-
-				Debug.Log("Loaded!");
 			}
 		}
 
 
 		/**
-		 * Saves all game relevant data to a save game named like the given string
+		 * Assigns the player data (health, position, rotation) by the given save game
+		 */
+		private static void AssignPlayerData(SaveGame saveGame)
+		{
+			var playerPosition = new Vector3(
+				saveGame.player.positionX,
+				saveGame.player.positionY,
+				saveGame.player.positionZ
+			);
+
+			var playerRotation = new Quaternion(
+				saveGame.player.rotationX,
+				saveGame.player.rotationY,
+				saveGame.player.rotationZ,
+				saveGame.player.rotationW
+			);
+
+			SaveGameManager.playerHealth.currentHealth		= saveGame.player.health;
+			SaveGameManager.playerHealth.healthSlider.value	= saveGame.player.health;
+			SaveGameManager.playerTransform.position		= playerPosition;
+			SaveGameManager.playerTransform.rotation		= playerRotation;
+		}
+
+
+		/**
+		 * Assigns the game data by the given save game
+		 */
+		private static void AssignGameData(SaveGame saveGame)
+		{
+			ScoreManager.score				= saveGame.game.score;
+			Camera.main.transform.position	= new Vector3(
+				saveGame.game.cameraPositionX,
+				saveGame.game.cameraPositionY,
+				saveGame.game.cameraPositionZ
+			);
+		}
+
+
+		/**
+		 * Spawns and assigns the enemy data by the given save game and destroies the current enemies
+		 * TODO: Add spwan / load pooling so the game objects will not be destroied?
+		 */
+		private static void AssignEnemyData(SaveGame saveGame)
+		{
+			var enemies = GameObject.FindGameObjectsWithTag("Enemy");
+			for (var index = 0; index < enemies.Length; index ++)
+			{
+				GameObject.Destroy(enemies[index].gameObject);
+			}
+			
+			for (var index = 0; index < saveGame.enemies.Count; index ++)
+			{
+				var enemySpawnPosition	= new Vector3(
+					saveGame.enemies[index].positionX,
+					saveGame.enemies[index].positionY,
+					saveGame.enemies[index].positionZ
+				);
+				var enemySpawnRotation	= new Quaternion(
+					saveGame.enemies[index].rotationX,
+					saveGame.enemies[index].rotationY,
+					saveGame.enemies[index].rotationZ,
+					saveGame.enemies[index].rotationW
+				);
+				var enemyHealth = saveGame.enemies[index].health;
+				
+				EnemyManager.instances[saveGame.enemies[index].type].Spawn(
+					enemySpawnPosition,
+					enemySpawnRotation,
+					enemyHealth
+				);
+			}
+		}
+
+
+		/**
+		 * Saves all game relevant data (player-, game- and enemy-data) to a save game named like the given string
 		 */
 		public static void Save(string saveGameName)
 		{
-			var bf = new BinaryFormatter();
-			var file = File.Create(Application.persistentDataPath + "/" + saveGameName + ".dat");
-			var saveGame = new SaveGame();
+			var binaryFormatter	= new BinaryFormatter();
+			var saveGameFile	= File.Create(Application.persistentDataPath + "/" + saveGameName + ".savegame");
+			var saveGame		= new SaveGame();
+
+			SaveGameManager.AddPlayerData(saveGame);
+			SaveGameManager.AddGameData(saveGame);
+			SaveGameManager.AddEnemyData(saveGame);
+
+			binaryFormatter.Serialize(saveGameFile, saveGame);
+			saveGameFile.Close();
+
+			Debug.Log("The savegame " + saveGameName + " was successfully saved!");
+		}
 
 
-			var player			= GameObject.FindGameObjectWithTag("Player");
-			var playerHealth	= player.GetComponent<PlayerHealth>();
-			var playerTransform	= player.GetComponent<Transform>();
-
+		/**
+		 * Adds the relevant player data to the given save game
+		 */
+		private static void AddPlayerData(SaveGame saveGame)
+		{
 			saveGame.player.health		= playerHealth.currentHealth;
 			saveGame.player.positionX	= playerTransform.position.x;
 			saveGame.player.positionY	= playerTransform.position.y;
@@ -96,95 +189,125 @@ namespace CompleteProject
 			saveGame.player.rotationY	= playerTransform.rotation.y;
 			saveGame.player.rotationZ	= playerTransform.rotation.z;
 			saveGame.player.rotationW	= playerTransform.rotation.w;
+		}
 
 
+		/**
+		 * Adds the relevant game data to the given save game
+		 */
+		private static void AddGameData(SaveGame saveGame)
+		{
 			saveGame.game.score				= ScoreManager.score;
 			saveGame.game.cameraPositionX	= Camera.main.transform.position.x;
 			saveGame.game.cameraPositionY	= Camera.main.transform.position.y;
 			saveGame.game.cameraPositionZ	= Camera.main.transform.position.z;
+		}
 
 
-			var enemies = GameObject.FindGameObjectsWithTag("Enemy");
-			saveGame.enemies = new EnemyData[enemies.Length];
+		/**
+		 * Adds the relevant enemy data to the given save game
+		 */
+		private static void AddEnemyData(SaveGame saveGame)
+		{
+			var enemies			= GameObject.FindGameObjectsWithTag("Enemy");
+			saveGame.enemies	= new List<SaveGameEnemyData>();
+
 			for (var index = 0; index < enemies.Length; index ++)
 			{
-				var enemyHealth		= enemies[index].gameObject.GetComponent<EnemyHealth>();
-				var enemyType		= enemies[index].gameObject.GetComponent<EnemyType>();
-				var enemyTransform	= enemies[index].gameObject.transform;
+				var enemyHealth = enemies[index].gameObject.GetComponent<EnemyHealth>();
+				
+				if (!enemyHealth.IsDead())
+				{
+					var enemyTransform		= enemies[index].gameObject.transform;
+					var saveGameEnemyData	= new SaveGameEnemyData();
 
-				saveGame.enemies[index]				= new EnemyData();
-				saveGame.enemies[index].health		= enemyHealth.currentHealth;
-				saveGame.enemies[index].positionX	= enemyTransform.position.x;
-				saveGame.enemies[index].positionY	= enemyTransform.position.y;
-				saveGame.enemies[index].positionZ	= enemyTransform.position.z;
-				saveGame.enemies[index].rotationX	= enemyTransform.rotation.x;
-				saveGame.enemies[index].rotationY	= enemyTransform.rotation.y;
-				saveGame.enemies[index].rotationZ	= enemyTransform.rotation.z;
-				saveGame.enemies[index].rotationW	= enemyTransform.rotation.w;
-				saveGame.enemies[index].type		= enemyType.type;
+					saveGameEnemyData.health	= enemyHealth.currentHealth;
+					saveGameEnemyData.positionX	= enemyTransform.position.x;
+					saveGameEnemyData.positionY	= enemyTransform.position.y;
+					saveGameEnemyData.positionZ	= enemyTransform.position.z;
+					saveGameEnemyData.rotationX	= enemyTransform.rotation.x;
+					saveGameEnemyData.rotationY	= enemyTransform.rotation.y;
+					saveGameEnemyData.rotationZ	= enemyTransform.rotation.z;
+					saveGameEnemyData.rotationW	= enemyTransform.rotation.w;
+					saveGameEnemyData.type		= enemyHealth.name;
+
+					saveGame.enemies.Add(saveGameEnemyData);
+				}
 			}
-
-
-			bf.Serialize(file, saveGame);
-			file.Close();
-
-			Debug.Log("Saved!");
 		}
     }
 
 
 	/**
-	 * Stores the character data
+	 * Stores the whole save game data
 	 */
 	[Serializable]
 	public class SaveGame
 	{
-		public CharacterData	player	= new CharacterData();
-		public GameData			game	= new GameData();
-		public EnemyData[]		enemies;
+		public SaveGameCharacterData	player	= new SaveGameCharacterData();
+		public SaveGameGameData			game	= new SaveGameGameData();
+		public List<SaveGameEnemyData>	enemies;
 	}
 
 
 	/**
-	 * Stores the character data
+	 * Stores character data
 	 */
 	[Serializable]
-	public class CharacterData
+	public class SaveGameCharacterData
 	{
-		// current health
+		/**
+		 * Current character health
+		 */
 		public int health;
 
-		// current position
+
+		/**
+		 * Current character position
+		 */
 		public float positionX;
 		public float positionY;
 		public float positionZ;
 
-		// current rotation
+
+		/**
+		 * Current character rotation
+		 */
 		public float rotationX;
 		public float rotationY;
 		public float rotationZ;
 		public float rotationW;
 	}
 
+
 	/**
-	 * Stores the enemy data
+	 * Stores enemy data
 	 */
 	[Serializable]
-	public class EnemyData : CharacterData
+	public class SaveGameEnemyData : SaveGameCharacterData
 	{
-		// current rotation
+		/**
+		 * The enemy type
+		 */
 		public string type;
 	}
 
 
 	/**
-	 * Stores the game data
+	 * Stores game data
 	 */
 	[Serializable]
-	public class GameData
+	public class SaveGameGameData
 	{
+		/**
+		 * The player game score
+		 */
 		public int score;
 
+
+		/**
+		 * The current camera position
+		 */
 		public float cameraPositionX;
 		public float cameraPositionY;
 		public float cameraPositionZ;

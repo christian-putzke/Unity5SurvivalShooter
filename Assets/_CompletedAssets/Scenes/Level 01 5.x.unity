@@ -2672,6 +2672,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4d61869e82fa49ebaaec52c36491e5c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  saveGameName: Khorinis
 --- !u!4 &1513532603
 Transform:
   m_ObjectHideFlags: 0
