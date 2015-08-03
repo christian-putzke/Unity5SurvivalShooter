@@ -17,7 +17,10 @@ namespace CompleteProject
             // Call the Spawn function after a delay of the spawnTime and then continue to call after the same amount of time.
             InvokeRepeating ("Spawn", spawnTime, spawnTime);
 
-			EnemyManager.instances.Add(enemy.name, this);
+			if (!EnemyManager.instances.ContainsKey(enemy.name))
+			{
+				EnemyManager.instances.Add(enemy.name, this);
+			}
         }
 
 

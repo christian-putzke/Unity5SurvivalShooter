@@ -45,13 +45,16 @@ namespace CompleteProject
 		 */
 		private void Update()
 		{
-			if (SaveGameManager.playerHealth.currentHealth > 0 && Input.GetButtonDown("Save"))
+			if (SaveGameManager.playerHealth.currentHealth > 0)
 			{
-				SaveGameManager.Save(this.saveGameName);
-			}
-			else if (Input.GetButtonDown("Load"))
-			{
-				SaveGameManager.Load(this.saveGameName);
+				if (Input.GetButtonDown("Save"))
+				{
+					SaveGameManager.Save(this.saveGameName);
+				}
+				else if (Input.GetButtonDown("Load"))
+				{
+					SaveGameManager.Load(this.saveGameName);
+				}
 			}
 		}
 
